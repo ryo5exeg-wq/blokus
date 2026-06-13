@@ -1,0 +1,317 @@
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブロックス（ローカル＋AI）</title>
+<style>
+:root{--bg:#f4f1ea;--panel:#fff;--line:#d9d2c4;--ink:#33302a;--mut:#8a8273;
+--c1:#2f6df0;--c2:#f3c012;--c3:#e2453c;--c4:#37b24d;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;}
+body{padding:10px 12px 28px;max-width:1100px;margin:0 auto;}
+h1{font-size:19px;margin:4px 0 10px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 2px 6px rgba(120,100,60,.06);}
+button{font-family:inherit;font-size:15px;border:none;border-radius:11px;padding:10px 14px;font-weight:800;color:#fff;background:#6b7686;cursor:pointer;}
+button.sec{background:#eef0f3;color:#33302a;border:1px solid var(--line);}
+button.ghost{background:#fff;color:var(--mut);border:1px solid var(--line);font-weight:600;}
+button:disabled{opacity:.4;cursor:default;}
+button:active{transform:translateY(1px);}
+select{font-size:15px;padding:8px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:inherit;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.hidden{display:none;}
+.muted{color:var(--mut);font-size:13px;line-height:1.6;}
+.layout{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}
+.boardwrap{flex:0 0 auto;}
+.scores{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.scd{flex:1;min-width:120px;border:2px solid var(--line);border-radius:11px;padding:6px 9px;background:#fff;}
+.scd .nm{font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;}
+.scd .dot{width:13px;height:13px;border-radius:3px;display:inline-block;}
+.scd.turn{box-shadow:0 0 0 3px #ffd27a inset;border-color:#f0a93a;}
+.scd.passed{opacity:.5;}
+.scd .det{font-size:12px;color:var(--mut);margin-top:2px;}
+#board{display:grid;grid-template-columns:repeat(20,1fr);width:min(92vw,560px);aspect-ratio:1/1;border:3px solid #b9b1a1;border-radius:6px;background:#cfc8b8;gap:1px;padding:1px;touch-action:manipulation;}
+.cell{background:#efeadd;border-radius:1px;position:relative;}
+.cell.s1{background:var(--c1);}.cell.s2{background:var(--c2);}.cell.s3{background:var(--c3);}.cell.s4{background:var(--c4);}
+.cell.cor::after{content:'';position:absolute;inset:22%;border-radius:50%;background:rgba(0,0,0,.16);}
+.cell.gok{outline:2px solid #1f8a3a;outline-offset:-2px;opacity:.9;}
+.cell.gng{outline:2px solid #c0392b;outline-offset:-2px;}
+.cell.anchor::before{content:'';position:absolute;inset:30%;border-radius:50%;background:rgba(0,0,0,.18);}
+.tray{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;}
+.pc{border:1px solid var(--line);border-radius:8px;padding:4px;background:#fbfaf6;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pc.sel{outline:3px solid #f0a93a;outline-offset:-1px;}
+.pc.used{opacity:.25;pointer-events:none;}
+.pg{display:grid;gap:1px;}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+.turnmsg{font-weight:800;margin:2px 0 8px;font-size:15px;}
+.win{font-size:17px;font-weight:800;}
+.legend{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.6;}
+details{margin-top:6px;}summary{cursor:pointer;font-weight:700;color:#5a6;font-size:14px;}
+</style>
+</head>
+<body>
+<h1>🟦 ブロックス <span class="muted">ローカル＋AI（4人）</span></h1>
+
+<div id="setup" class="card">
+  <div class="row" style="margin-bottom:8px"><b>各プレイヤーを「人」か「AI」で選んでね</b></div>
+  <div class="row" id="seatPick"></div>
+  <div class="row" style="margin-top:12px">
+    <button onclick="startGame()">ゲーム開始</button>
+    <span class="muted">※1台の画面で交代しながら遊びます（情報は全公開）</span>
+  </div>
+  <details><summary>遊び方（かんたん）</summary>
+    <div class="muted">・各色21個のピースを、自分の隅から置き始めます。<br>
+    ・2個目以降は<b>自分の同じ色のピースの「角」だけ</b>でつなげます（辺で接してはダメ。他の色とは辺で接してOK）。<br>
+    ・ピースを選ぶ→<b>回転/反転</b>で向きを決め→盤をタップして位置を合わせ→<b>「ここに置く」</b>。<br>
+    ・置ける場所が無くなった人は自動でパス。全員パスで終了。<br>
+    ・得点は「置けずに残ったマス数 × −1点」。全部置けたら＋15点（最後が1マスのピースなら＋20点）。点が一番高い人の勝ち！</div>
+  </details>
+</div>
+
+<div id="game" class="hidden">
+  <div class="scores" id="scores"></div>
+  <div class="layout">
+    <div class="boardwrap">
+      <div id="board"></div>
+      <div class="legend">丸印＝各色のスタート隅。薄い丸＝今置ける「角（アンカー）」候補。</div>
+    </div>
+    <div class="card" style="flex:1;min-width:280px">
+      <div class="turnmsg" id="turnmsg"></div>
+      <div id="humanArea">
+        <div class="muted">ピースを選ぶ → 回転/反転で向き → 盤をタップして位置決め → 置く</div>
+        <div class="tray" id="tray"></div>
+        <div class="controls">
+          <div id="selPreview" style="min-width:60px;min-height:46px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:8px;padding:4px"></div>
+          <button class="sec" onclick="rotate()">↻ 回転</button>
+          <button class="sec" onclick="flipP()">⇄ 反転</button>
+          <button id="placeBtn" onclick="confirmPlace()" disabled>ここに置く</button>
+          <button class="ghost" onclick="clearSel()">選択解除</button>
+        </div>
+        <div class="legend" id="hint"></div>
+      </div>
+      <div id="aiArea" class="hidden"><div class="muted">AIが考えています…</div></div>
+      <div class="controls" style="margin-top:14px">
+        <button class="ghost" onclick="resetGame()">最初から</button>
+      </div>
+    </div>
+  </div>
+  <div id="endCard" class="card hidden"></div>
+</div>
+
+<script>
+var N=20;
+var PIECES=[
+ ['I1',[[0,0]]],['I2',[[0,0],[0,1]]],['I3',[[0,0],[0,1],[0,2]]],['V3',[[0,0],[1,0],[1,1]]],
+ ['I4',[[0,0],[0,1],[0,2],[0,3]]],['L4',[[0,0],[0,1],[0,2],[1,0]]],['T4',[[0,0],[0,1],[0,2],[1,1]]],
+ ['S4',[[0,1],[0,2],[1,0],[1,1]]],['O4',[[0,0],[0,1],[1,0],[1,1]]],
+ ['F',[[0,1],[0,2],[1,0],[1,1],[2,1]]],['I5',[[0,0],[1,0],[2,0],[3,0],[4,0]]],['L5',[[0,0],[1,0],[2,0],[3,0],[3,1]]],
+ ['N',[[0,1],[1,1],[2,0],[2,1],[3,0]]],['P',[[0,0],[0,1],[1,0],[1,1],[2,0]]],['T5',[[0,0],[0,1],[0,2],[1,1],[2,1]]],
+ ['U',[[0,0],[0,2],[1,0],[1,1],[1,2]]],['V5',[[0,0],[1,0],[2,0],[2,1],[2,2]]],['W',[[0,0],[1,0],[1,1],[2,1],[2,2]]],
+ ['X',[[0,1],[1,0],[1,1],[1,2],[2,1]]],['Y',[[0,1],[1,0],[1,1],[2,1],[3,1]]],['Z',[[0,0],[0,1],[1,1],[2,1],[2,2]]]
+];
+var PMAP={};PIECES.forEach(function(p){PMAP[p[0]]=p[1];});
+var SIZE={};PIECES.forEach(function(p){SIZE[p[0]]=p[1].length;});
+var COLORS=['#2f6df0','#f3c012','#e2453c','#37b24d'];
+var CNAMES=['青','黄','赤','緑'];
+var CORNERS=[[0,0],[0,N-1],[N-1,N-1],[N-1,0]];
+
+function norm(c){var mr=Math.min.apply(null,c.map(function(p){return p[0];})),mc=Math.min.apply(null,c.map(function(p){return p[1];}));return c.map(function(p){return [p[0]-mr,p[1]-mc];}).sort(function(a,b){return a[0]-b[0]||a[1]-b[1];});}
+function rot(c){return norm(c.map(function(p){return [p[1],-p[0]];}));}
+function flip(c){return norm(c.map(function(p){return [p[0],-p[1]];}));}
+function orients(c){var s={},out=[],cur=norm(c);for(var f=0;f<2;f++){for(var r=0;r<4;r++){var k=JSON.stringify(cur);if(!s[k]){s[k]=1;out.push(cur);}cur=rot(cur);}cur=flip(cur);}return out;}
+var ORI={};PIECES.forEach(function(p){ORI[p[0]]=orients(p[1]);});
+
+var G=null;
+function g(id){return document.getElementById(id);}
+
+function buildSeatPick(){
+  var def=['human','ai','ai','ai'];var h='';
+  for(var s=0;s<4;s++){
+    h+='<div style="border:2px solid var(--line);border-radius:10px;padding:8px 10px;min-width:118px">'+
+      '<div style="font-weight:800;display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:13px;height:13px;border-radius:3px;background:'+COLORS[s]+'"></span>'+CNAMES[s]+'</div>'+
+      '<select id="seat'+s+'" style="margin-top:6px;width:100%"><option value="human"'+(def[s]==='human'?' selected':'')+'>人</option><option value="ai"'+(def[s]==='ai'?' selected':'')+'>AI</option></select></div>';
+  }
+  g('seatPick').innerHTML=h;
+}
+function startGame(){
+  var players=[];
+  for(var s=0;s<4;s++){players.push({seat:s,ai:g('seat'+s).value==='ai',remain:PIECES.map(function(p){return p[0];}),first:true,passed:false,last:null});}
+  G={board:[],players:players,turn:0,sel:null,ori:0,ghost:null,over:false};
+  for(var r=0;r<N;r++){G.board.push(new Array(N).fill(0));}
+  g('setup').classList.add('hidden');g('game').classList.remove('hidden');g('endCard').classList.add('hidden');
+  renderBoard();renderScores();advanceTo(0);
+}
+function resetGame(){g('setup').classList.remove('hidden');g('game').classList.add('hidden');}
+
+function canPlace(seat,cells,R,C,first){
+  var b=G.board,tc=false,te=false;
+  for(var i=0;i<cells.length;i++){var br=R+cells[i][0],bc=C+cells[i][1];
+    if(br<0||bc<0||br>=N||bc>=N)return false;
+    if(b[br][bc]!==0)return false;
+    if(br>0&&b[br-1][bc]===seat+1)te=true; if(br<N-1&&b[br+1][bc]===seat+1)te=true;
+    if(bc>0&&b[br][bc-1]===seat+1)te=true; if(bc<N-1&&b[br][bc+1]===seat+1)te=true;
+    if(br>0&&bc>0&&b[br-1][bc-1]===seat+1)tc=true; if(br>0&&bc<N-1&&b[br-1][bc+1]===seat+1)tc=true;
+    if(br<N-1&&bc>0&&b[br+1][bc-1]===seat+1)tc=true; if(br<N-1&&bc<N-1&&b[br+1][bc+1]===seat+1)tc=true;
+  }
+  if(te)return false;
+  if(first){return cells.some(function(c){return R+c[0]===CORNERS[seat][0]&&C+c[1]===CORNERS[seat][1];});}
+  return tc;
+}
+function hasAnyMove(seat){
+  var P=G.players[seat];
+  for(var pi=0;pi<P.remain.length;pi++){var os=ORI[P.remain[pi]];
+    for(var oi=0;oi<os.length;oi++){var o=os[oi];var mr=Math.max.apply(null,o.map(function(p){return p[0];})),mc=Math.max.apply(null,o.map(function(p){return p[1];}));
+      for(var R=0;R<=N-1-mr;R++)for(var C=0;C<=N-1-mc;C++){if(canPlace(seat,o,R,C,P.first))return true;}}}
+  return false;
+}
+function legalMoves(seat){
+  var P=G.players[seat],mv=[];
+  for(var pi=0;pi<P.remain.length;pi++){var pid=P.remain[pi],os=ORI[pid];
+    for(var oi=0;oi<os.length;oi++){var o=os[oi];var mr=Math.max.apply(null,o.map(function(p){return p[0];})),mc=Math.max.apply(null,o.map(function(p){return p[1];}));
+      for(var R=0;R<=N-1-mr;R++)for(var C=0;C<=N-1-mc;C++){if(canPlace(seat,o,R,C,P.first))mv.push({pid:pid,o:o,R:R,C:C,size:o.length});}}}
+  return mv;
+}
+function anchorCells(seat){
+  var b=G.board,res=[];
+  if(G.players[seat].first)return [CORNERS[seat]];
+  for(var r=0;r<N;r++)for(var c=0;c<N;c++){
+    if(b[r][c]!==0)continue;var edge=false,cor=false;
+    if(r>0&&b[r-1][c]===seat+1)edge=true; if(r<N-1&&b[r+1][c]===seat+1)edge=true;
+    if(c>0&&b[r][c-1]===seat+1)edge=true; if(c<N-1&&b[r][c+1]===seat+1)edge=true;
+    if(r>0&&c>0&&b[r-1][c-1]===seat+1)cor=true; if(r>0&&c<N-1&&b[r-1][c+1]===seat+1)cor=true;
+    if(r<N-1&&c>0&&b[r+1][c-1]===seat+1)cor=true; if(r<N-1&&c<N-1&&b[r+1][c+1]===seat+1)cor=true;
+    if(cor&&!edge)res.push([r,c]);
+  }
+  return res;
+}
+function advanceTo(seat){
+  for(var k=0;k<4;k++){
+    var s=(seat+k)%4,P=G.players[s];
+    if(P.passed)continue;
+    if(!hasAnyMove(s)){P.passed=true;renderScores();continue;}
+    G.turn=s;G.sel=null;G.ghost=null;G.ori=0;
+    renderScores();renderTurn();
+    if(P.ai){g('humanArea').classList.add('hidden');g('aiArea').classList.remove('hidden');setTimeout(aiMove,420);}
+    else{g('aiArea').classList.add('hidden');g('humanArea').classList.remove('hidden');renderTray();renderBoard();renderSelPreview();}
+    return;
+  }
+  endGame();
+}
+function nextTurn(){advanceTo((G.turn+1)%4);}
+function placePiece(seat,pid,o,R,C){
+  for(var i=0;i<o.length;i++)G.board[R+o[i][0]][C+o[i][1]]=seat+1;
+  var P=G.players[seat];P.remain=P.remain.filter(function(x){return x!==pid;});P.first=false;P.last=pid;
+}
+function aiMove(){
+  var seat=G.turn,mv=legalMoves(seat);
+  if(mv.length===0){G.players[seat].passed=true;renderScores();nextTurn();return;}
+  var b=G.board,best=null,bestScore=-1e9;
+  var cx=(CORNERS[seat][0]<10)?0:19,cy=(CORNERS[seat][1]<10)?0:19;
+  for(var i=0;i<mv.length;i++){var m=mv[i];var occ={},reach=0,corners=0;
+    for(var j=0;j<m.o.length;j++){var br=m.R+m.o[j][0],bc=m.C+m.o[j][1];occ[br*100+bc]=1;reach+=Math.abs(br-cx)+Math.abs(bc-cy);}
+    for(var j2=0;j2<m.o.length;j2++){var br2=m.R+m.o[j2][0],bc2=m.C+m.o[j2][1];var ds=[[-1,-1],[-1,1],[1,-1],[1,1]];
+      for(var d=0;d<4;d++){var nr=br2+ds[d][0],nc=bc2+ds[d][1];if(nr<0||nc<0||nr>=N||nc>=N)continue;if(b[nr][nc]!==0)continue;if(occ[nr*100+nc])continue;
+        var adj=occ[(nr-1)*100+nc]||occ[(nr+1)*100+nc]||occ[nr*100+nc-1]||occ[nr*100+nc+1];if(!adj)corners++;}}
+    var sc=m.size*1000+corners*12+reach*0.6+Math.random()*2;
+    if(sc>bestScore){bestScore=sc;best=m;}
+  }
+  placePiece(seat,best.pid,best.o,best.R,best.C);renderBoard();renderScores();nextTurn();
+}
+
+function renderBoard(){
+  var bd=g('board');
+  if(bd.children.length!==N*N){bd.innerHTML='';for(var i=0;i<N*N;i++){var d=document.createElement('div');d.className='cell';var r=Math.floor(i/N),c=i%N;d.dataset.r=r;d.dataset.c=c;d.onclick=cellTap;bd.appendChild(d);}}
+  var anchors={};
+  if(G&&!G.over&&!G.players[G.turn].ai){anchorCells(G.turn).forEach(function(a){anchors[a[0]*100+a[1]]=1;});}
+  var ghostSet={},ghostValid=false;
+  if(G&&G.ghost){ghostValid=G.ghost.valid;G.ghost.cells.forEach(function(c){ghostSet[c[0]*100+c[1]]=1;});}
+  for(var i2=0;i2<N*N;i2++){var d2=bd.children[i2];var r2=Math.floor(i2/N),c2=i2%N;var v=G?G.board[r2][c2]:0;
+    var cls='cell';if(v)cls+=' s'+v;
+    if(((r2===0&&c2===0)||(r2===0&&c2===19)||(r2===19&&c2===19)||(r2===19&&c2===0))&&!v)cls+=' cor';
+    if(anchors[r2*100+c2]&&!v)cls+=' anchor';
+    if(ghostSet[r2*100+c2])cls+=(ghostValid?' gok':' gng');
+    d2.className=cls;
+  }
+}
+function renderScores(){
+  var h='';
+  for(var s=0;s<4;s++){var P=G.players[s];var rem=0;P.remain.forEach(function(pid){rem+=SIZE[pid];});
+    var sc=-rem+(rem===0?(P.last==='I1'?20:15):0);
+    h+='<div class="scd'+(G.turn===s&&!G.over?' turn':'')+(P.passed?' passed':'')+'">'+
+       '<div class="nm"><span class="dot" style="background:'+COLORS[s]+'"></span>'+CNAMES[s]+(P.ai?'（AI）':'')+'</div>'+
+       '<div class="det">残り'+P.remain.length+'個（'+rem+'マス）｜得点 '+sc+(P.passed?'｜パス済':'')+'</div></div>';
+  }
+  g('scores').innerHTML=h;
+}
+function renderTurn(){var P=G.players[G.turn];g('turnmsg').innerHTML='<span style="color:'+COLORS[G.turn]+'">●</span> '+CNAMES[G.turn]+' の番'+(P.ai?'（AI）':'（あなた）');}
+function pieceMiniCells(cells,color,s){
+  var mr=Math.max.apply(null,cells.map(function(p){return p[0];}))+1,mc=Math.max.apply(null,cells.map(function(p){return p[1];}))+1;
+  var grid={};cells.forEach(function(c){grid[c[0]*100+c[1]]=1;});s=s||12;
+  var h='<div class="pg" style="grid-template-columns:repeat('+mc+','+s+'px)">';
+  for(var r=0;r<mr;r++)for(var c=0;c<mc;c++){h+='<div style="width:'+s+'px;height:'+s+'px;background:'+(grid[r*100+c]?color:'transparent')+';border-radius:2px"></div>';}
+  return h+'</div>';
+}
+function renderTray(){
+  var P=G.players[G.turn],color=COLORS[G.turn],h='';
+  PIECES.forEach(function(p){var pid=p[0],used=P.remain.indexOf(pid)<0;
+    h+='<div class="pc'+(used?' used':'')+(G.sel===pid?' sel':'')+'" onclick="selPiece(\''+pid+'\')">'+pieceMiniCells(PMAP[pid],used?'#ccc':color,11)+'</div>';
+  });
+  g('tray').innerHTML=h;updateHint();renderSelPreview();
+}
+function renderSelPreview(){
+  var el=g('selPreview');if(!el)return;
+  if(!G.sel){el.innerHTML='<span class="muted" style="font-size:11px">ピース</span>';return;}
+  el.innerHTML='<div style="font-size:10px;color:var(--mut);text-align:center;margin-bottom:2px;font-weight:700">選択中</div>'+pieceMiniCells(ORI[G.sel][G.ori],COLORS[G.turn],13);
+}
+function updateHint(){
+  if(!G.sel){g('hint').textContent='';g('placeBtn').disabled=true;return;}
+  var ok=G.ghost&&G.ghost.valid;g('placeBtn').disabled=!ok;
+  g('hint').innerHTML=ok?'✓ ここに置けます。「ここに置く」で確定。':'盤をタップして位置合わせ（回転/反転で向き調整）。';
+}
+function selPiece(pid){if(G.players[G.turn].ai)return;if(G.players[G.turn].remain.indexOf(pid)<0)return;G.sel=pid;G.ori=0;G.ghost=null;renderTray();renderSelPreview();var sp=startPoint();placeGhostNear(sp[0],sp[1]);}
+function clearSel(){G.sel=null;G.ghost=null;renderTray();renderBoard();renderSelPreview();}
+function curCells(){return ORI[G.sel][G.ori];}
+function rotate(){if(!G.sel)return;G.ori=(G.ori+1)%ORI[G.sel].length;renderSelPreview();var p=G.ghost?[G.ghost.R,G.ghost.C]:startPoint();placeGhostNear(p[0],p[1]);}
+function flipP(){if(!G.sel)return;var fl=flip(curCells());var os=ORI[G.sel];for(var i=0;i<os.length;i++){if(JSON.stringify(os[i])===JSON.stringify(fl)){G.ori=i;break;}}renderSelPreview();var p=G.ghost?[G.ghost.R,G.ghost.C]:startPoint();placeGhostNear(p[0],p[1]);}
+function reghost(){if(!G.sel){renderBoard();updateHint();return;}if(G.ghost){setGhost(G.ghost.R,G.ghost.C);}else{renderBoard();updateHint();}}
+function setGhost(R,C){
+  var o=curCells();
+  var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
+  R=Math.max(0,Math.min(R,N-1-mr));C=Math.max(0,Math.min(C,N-1-mc));
+  var cells=o.map(function(c){return [R+c[0],C+c[1]];});
+  var valid=canPlace(G.turn,o,R,C,G.players[G.turn].first);
+  G.ghost={R:R,C:C,cells:cells,valid:valid};renderBoard();updateHint();
+}
+function startPoint(){var seat=G.turn;if(G.players[seat].first)return CORNERS[seat];var a=anchorCells(seat);return a.length?a[0]:[9,9];}
+function placeGhostNear(R,C){
+  if(!G.sel)return;var o=curCells(),seat=G.turn,first=G.players[seat].first;
+  var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
+  for(var rad=0;rad<=14;rad++){var found=null,bestd=1e9;
+    for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){
+      if(Math.max(Math.abs(dr),Math.abs(dc))!==rad)continue;
+      var rr=Math.max(0,Math.min(R+dr,N-1-mr)),cc=Math.max(0,Math.min(C+dc,N-1-mc));
+      if(canPlace(seat,o,rr,cc,first)){var d=(rr-R)*(rr-R)+(cc-C)*(cc-C);if(d<bestd){bestd=d;found=[rr,cc];}}}
+    if(found){setGhost(found[0],found[1]);return;}}
+  setGhost(R,C);
+}
+function cellTap(e){
+  if(!G||G.over||G.players[G.turn].ai||!G.sel)return;
+  placeGhostNear(+e.currentTarget.dataset.r,+e.currentTarget.dataset.c);
+}
+function confirmPlace(){
+  if(!G.sel||!G.ghost||!G.ghost.valid)return;
+  placePiece(G.turn,G.sel,curCells(),G.ghost.R,G.ghost.C);
+  G.sel=null;G.ghost=null;renderBoard();renderScores();nextTurn();
+}
+function endGame(){
+  G.over=true;renderBoard();renderScores();
+  var arr=[];for(var s=0;s<4;s++){var P=G.players[s];var rem=0;P.remain.forEach(function(pid){rem+=SIZE[pid];});arr.push({s:s,sc:-rem+(rem===0?(P.last==='I1'?20:15):0),rem:rem,all:rem===0});}
+  arr.sort(function(a,b){return b.sc-a.sc;});
+  var top=arr[0].sc,winners=arr.filter(function(a){return a.sc===top;}).map(function(a){return CNAMES[a.s];});
+  var h='<div class="win">🏆 勝者：'+winners.join('・')+'（'+top+'点）</div><div style="margin-top:8px">';
+  arr.forEach(function(a){h+='<div style="margin:3px 0"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:'+COLORS[a.s]+';margin-right:6px"></span><b>'+CNAMES[a.s]+'</b> … '+a.sc+'点'+(a.all?'（全部置けた！）':'（残り'+a.rem+'マス）')+'</div>';});
+  h+='</div><div class="controls" style="margin-top:12px"><button onclick="resetGame()">もう一度</button></div>';
+  g('endCard').innerHTML=h;g('endCard').classList.remove('hidden');
+  g('turnmsg').textContent='ゲーム終了';g('humanArea').classList.add('hidden');g('aiArea').classList.add('hidden');
+}
+buildSeatPick();
+</script>
+</body></html>

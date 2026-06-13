@@ -1,0 +1,107 @@
+<!doctype html><html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブロックス オンライン対戦</title>
+<style>
+:root{--bg:#f4f1ea;--panel:#fff;--line:#d9d2c4;--ink:#33302a;--mut:#8a8273;--c1:#2f6df0;--c2:#f3c012;--c3:#e2453c;--c4:#37b24d;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;}
+body{padding:10px 12px 28px;max-width:1100px;margin:0 auto;}
+h1{font-size:19px;margin:4px 0 10px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;}
+button{font-family:inherit;font-size:15px;border:none;border-radius:11px;padding:10px 14px;font-weight:800;color:#fff;background:#3f7d3f;cursor:pointer;}
+button.sec{background:#eef0f3;color:#33302a;border:1px solid var(--line);}
+button.ghost{background:#fff;color:var(--mut);border:1px solid var(--line);font-weight:600;}
+button:disabled{opacity:.4;cursor:default;}button:active{transform:translateY(1px);}
+input,select{font-size:16px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:inherit;width:100%;}
+label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}.row>div{flex:1;min-width:120px;}
+.hidden{display:none;}.muted{color:var(--mut);font-size:13px;line-height:1.6;}
+.layout{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;}
+.scores{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.scd{flex:1;min-width:120px;border:2px solid var(--line);border-radius:11px;padding:6px 9px;background:#fff;}
+.scd .nm{font-weight:800;font-size:13px;display:flex;align-items:center;gap:6px;}
+.scd .dot{width:13px;height:13px;border-radius:3px;display:inline-block;}
+.scd.turn{box-shadow:0 0 0 3px #ffd27a inset;border-color:#f0a93a;}.scd.passed{opacity:.55;}
+.scd .det{font-size:12px;color:var(--mut);margin-top:2px;}
+.discon{background:#fff0f0;color:var(--c3);border:1px solid var(--c3);border-radius:7px;font-size:10px;font-weight:800;padding:0 5px;margin-left:4px;}
+.you-badge{background:#3f7d3f;color:#fff;border-radius:7px;font-size:10px;font-weight:900;padding:1px 6px;margin-left:6px;}
+#board{display:grid;grid-template-columns:repeat(20,1fr);width:min(92vw,560px);aspect-ratio:1/1;border:3px solid #b9b1a1;border-radius:6px;background:#cfc8b8;gap:1px;padding:1px;touch-action:manipulation;}
+.cell{background:#efeadd;border-radius:1px;position:relative;}
+.cell.s1{background:var(--c1);}.cell.s2{background:var(--c2);}.cell.s3{background:var(--c3);}.cell.s4{background:var(--c4);}
+.cell.cor::after{content:'';position:absolute;inset:22%;border-radius:50%;background:rgba(0,0,0,.16);}
+.cell.gok{outline:2px solid #1f8a3a;outline-offset:-2px;opacity:.9;}.cell.gng{outline:2px solid #c0392b;outline-offset:-2px;}
+.cell.anchor::before{content:'';position:absolute;inset:30%;border-radius:50%;background:rgba(0,0,0,.2);}
+.tray{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;}
+.pc{border:1px solid var(--line);border-radius:8px;padding:4px;background:#fbfaf6;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pc.sel{outline:3px solid #f0a93a;outline-offset:-1px;}.pc.used{opacity:.25;pointer-events:none;}
+.pg{display:grid;gap:1px;}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+.turnmsg{font-weight:800;margin:2px 0 8px;font-size:15px;}.legend{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5;}
+.bigcode{font-size:30px;font-weight:900;letter-spacing:4px;color:#3f7d3f;text-align:center;background:#eef6ee;border-radius:12px;padding:10px;margin:8px 0;}
+.prow{display:flex;justify-content:space-between;background:#fafafa;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:800;margin:4px 0;}
+#toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:10px;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;font-size:14px;}
+#toast.on{opacity:.95;}
+#connbar{background:#fff0f0;color:var(--c3);border:1px solid var(--c3);border-radius:10px;padding:7px 10px;font-weight:700;text-align:center;margin-bottom:8px;}
+.win{font-size:17px;font-weight:800;}
+</style></head>
+<body>
+<h1>🟦 ブロックス <span class="muted">オンライン対戦（4人）</span></h1>
+<div id="toast"></div>
+
+<div id="lobby" class="card">
+  <label>サーバーURL</label><input id="srv" placeholder="https://blokus-server.xxx.workers.dev">
+  <label>あなたの名前</label><input id="nm" value="りょうま" maxlength="16">
+  <div class="row" style="margin-top:12px">
+    <div><button onclick="createRoom()" style="width:100%">部屋をつくる</button></div>
+  </div>
+  <div class="card" style="margin-top:12px;margin-bottom:0">
+    <label>部屋コードで参加</label>
+    <div class="row"><div><input id="jc" placeholder="ABCD" maxlength="6" style="text-transform:uppercase"></div>
+    <div style="flex:0 0 auto"><button class="sec" onclick="joinRoom()">参加する</button></div></div>
+  </div>
+  <div id="err" style="color:var(--c3);font-weight:700;margin-top:8px;min-height:18px"></div>
+</div>
+
+<div id="waiting" class="card hidden">
+  <div class="muted" style="text-align:center">この部屋コードを仲間に伝えてね</div>
+  <div class="bigcode" id="wcode">----</div>
+  <div class="row" id="shareRow"><button class="sec" onclick="shareLink()" style="width:100%">参加リンクをコピー</button></div>
+  <div class="note muted" id="sharemsg"></div>
+  <div id="wplist"></div>
+  <div class="muted" id="wstatus" style="text-align:center;margin:6px 0"></div>
+  <button id="startBtn" class="hidden" onclick="startGame()" style="width:100%">全員そろった！開始（足りない席はAI）</button>
+</div>
+
+<div id="game" class="hidden">
+  <div id="connbar" class="hidden">⚠ 接続が不安定です。再接続しています…</div>
+  <div class="scores" id="scores"></div>
+  <div class="layout">
+    <div><div id="board"></div>
+      <div class="legend">丸印＝各色のスタート隅。薄い丸＝あなたが置ける「角」候補。</div></div>
+    <div class="card" style="flex:1;min-width:280px">
+      <div class="turnmsg" id="turnmsg"></div>
+      <div id="myArea">
+        <div class="muted">あなたのピース（自分の番に置けます）</div>
+        <div class="tray" id="tray"></div>
+        <div class="controls">
+          <div id="selPreview" style="min-width:60px;min-height:46px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:8px;padding:4px"></div>
+          <button class="sec" onclick="rotate()">↻ 回転</button>
+          <button class="sec" onclick="flipP()">⇄ 反転</button>
+          <button id="placeBtn" onclick="confirmPlace()" disabled>ここに置く</button>
+          <button class="ghost" onclick="clearSel()">選択解除</button>
+        </div>
+        <div class="legend" id="hint"></div>
+      </div>
+      <div class="controls" style="margin-top:12px">
+        <button class="sec" onclick="doRestart()">最初から</button>
+        <button class="ghost" onclick="leave()">ロビーに戻る</button>
+      </div>
+    </div>
+  </div>
+  <div id="endCard" class="card hidden"></div>
+</div>
+
+<script src="blokus_core.js"></script>
+<script src="online_client.js"></script>
+</body></html>
