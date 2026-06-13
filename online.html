@@ -1,6 +1,13 @@
 <!doctype html><html lang="ja"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3f7d3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ブロックス">
+<link rel="apple-touch-icon" href="icon-180.png">
+
 <title>ブロックス オンライン対戦</title>
 <style>
 :root{--bg:#f4f1ea;--panel:#fff;--line:#d9d2c4;--ink:#33302a;--mut:#8a8273;--c1:#2f6df0;--c2:#f3c012;--c3:#e2453c;--c4:#37b24d;}
@@ -104,4 +111,5 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 
 <script src="blokus_core.js"></script>
 <script src="online_client.js"></script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
 </body></html>
