@@ -85,19 +85,39 @@ function updateHint(){var ok=GHOST&&GHOST.valid;g('placeBtn').disabled=!(ok&&VIE
   if(VIEW.over){g('hint').textContent='';return;}
   if(VIEW.turn!==MYSEAT){g('hint').textContent='ほかのプレイヤーの番を待っています…';return;}
   if(!SEL){g('hint').textContent='上のピースを選んでね';return;}
-  g('hint').innerHTML=ok?'✓ ここに置けます。「ここに置く」で確定。':'盤をタップして位置合わせ（回転/反転で向き調整）。';}
+  g('hint').innerHTML=ok?'✓ ここに置けます。「ここに置く」で確定。<br><span class="muted">同じマスを再タップ＝別の置き方に切替／矢印＝1マス移動</span>':'盤をタップして位置合わせ（回転/反転で向き・矢印で1マス移動）。';}
 
 function curCells(){return ORI[SEL][ORII];}
 function startPoint(){if(VIEW.players[MYSEAT].first)return CORNERS[MYSEAT];var a=anchorCells(MYSEAT);return a.length?a[0]:[9,9];}
 function selPiece(pid){if(VIEW.turn!==MYSEAT||VIEW.over)return;if(VIEW.players[MYSEAT].remain.indexOf(pid)<0)return;SEL=pid;ORII=0;GHOST=null;renderTray();renderSelPreview();var sp=startPoint();placeGhostNear(sp[0],sp[1]);}
-function clearSel(){SEL=null;GHOST=null;renderTray();renderBoard();renderSelPreview();updateHint();}
+function clearSel(){SEL=null;GHOST=null;TAPC.key=-1;renderTray();renderBoard();renderSelPreview();updateHint();}
 function rotate(){if(!SEL)return;ORII=(ORII+1)%ORI[SEL].length;renderSelPreview();var p=GHOST?[GHOST.R,GHOST.C]:startPoint();placeGhostNear(p[0],p[1]);}
 function flipP(){if(!SEL)return;var fl=BLOKUS.norm(ORI[SEL][ORII].map(function(p){return [p[0],-p[1]];}));var os=ORI[SEL];for(var i=0;i<os.length;i++){if(JSON.stringify(os[i])===JSON.stringify(fl)){ORII=i;break;}}renderSelPreview();var p=GHOST?[GHOST.R,GHOST.C]:startPoint();placeGhostNear(p[0],p[1]);}
-function placeGhostNear(R,C){if(!SEL)return;var o=curCells(),first=VIEW.players[MYSEAT].first;var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
+function placeGhostNear(R,C){if(!SEL)return;TAPC.key=-1;var o=curCells(),first=VIEW.players[MYSEAT].first;var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
   for(var rad=0;rad<=14;rad++){var found=null,bd=1e9;for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){if(Math.max(Math.abs(dr),Math.abs(dc))!==rad)continue;var rr=Math.max(0,Math.min(R+dr,N-1-mr)),cc=Math.max(0,Math.min(C+dc,N-1-mc));if(BLOKUS.canPlace(VIEW.board,MYSEAT,o,rr,cc,first)){var d=(rr-R)*(rr-R)+(cc-C)*(cc-C);if(d<bd){bd=d;found=[rr,cc];}}}if(found){setGhost(found[0],found[1]);return;}}
   setGhost(R,C);}
 function setGhost(R,C){var o=curCells();var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));R=Math.max(0,Math.min(R,N-1-mr));C=Math.max(0,Math.min(C,N-1-mc));var cells=o.map(function(c){return [R+c[0],C+c[1]];});var valid=BLOKUS.canPlace(VIEW.board,MYSEAT,o,R,C,VIEW.players[MYSEAT].first);GHOST={R:R,C:C,cells:cells,valid:valid};renderBoard();updateHint();}
-function cellTap(e){if(!VIEW||VIEW.over||VIEW.turn!==MYSEAT||!SEL)return;placeGhostNear(+e.currentTarget.dataset.r,+e.currentTarget.dataset.c);}
+/* タップ位置を覆う置き方を近い順に列挙。同じマスを再タップすると次の候補に切替。 */
+var TAPC={key:-1,list:[],idx:0};
+function candidatesNear(R,C){
+  var o=curCells(),first=VIEW.players[MYSEAT].first,res=[];
+  var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
+  for(var rr=0;rr<=N-1-mr;rr++)for(var cc=0;cc<=N-1-mc;cc++){
+    if(!BLOKUS.canPlace(VIEW.board,MYSEAT,o,rr,cc,first))continue;
+    var cover=0,bd=1e9;
+    for(var k=0;k<o.length;k++){var pr=rr+o[k][0],pc=cc+o[k][1];var d=(pr-R)*(pr-R)+(pc-C)*(pc-C);if(d<bd)bd=d;if(pr===R&&pc===C)cover=1;}
+    res.push({rr:rr,cc:cc,cover:cover,d:bd});
+  }
+  res.sort(function(a,b){return (b.cover-a.cover)||(a.d-b.d);});
+  return res.slice(0,12);
+}
+function cellTap(e){if(!VIEW||VIEW.over||VIEW.turn!==MYSEAT||!SEL)return;
+  var r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c,key=r*100+c;
+  if(TAPC.key===key&&TAPC.list.length>1){TAPC.idx=(TAPC.idx+1)%TAPC.list.length;}
+  else{TAPC.key=key;TAPC.list=candidatesNear(r,c);TAPC.idx=0;}
+  if(TAPC.list.length){var g0=TAPC.list[TAPC.idx];setGhost(g0.rr,g0.cc);if(TAPC.list.length>1)toast('置き方 '+(TAPC.idx+1)+'/'+TAPC.list.length+'（同じマスをタップで切替）');}
+  else placeGhostNear(r,c);}
+function nudge(dr,dc){if(!SEL||!GHOST)return;TAPC.key=-1;setGhost(GHOST.R+dr,GHOST.C+dc);}
 function confirmPlace(){if(!SEL||!GHOST||!GHOST.valid||VIEW.turn!==MYSEAT)return;
   var mv={kind:'place',pid:SEL,cells:curCells(),R:GHOST.R,C:GHOST.C};SEL=null;GHOST=null;
   api('/api/room/'+CODE+'/action','POST',{playerId:PID,move:mv,rev:REV}).then(function(r){if(!r.ok&&r.err)toast(r.err);tick();}).catch(function(){toast('送信できませんでした');tick();});}

@@ -90,6 +90,13 @@ details{margin-top:6px;}summary{cursor:pointer;font-weight:700;color:#5a6;font-s
           <button class="sec" onclick="rotate()">↻ 回転</button>
           <button class="sec" onclick="flipP()">⇄ 反転</button>
           <button id="placeBtn" onclick="confirmPlace()" disabled>ここに置く</button>
+        </div>
+        <div class="controls" style="margin-top:6px">
+          <span class="muted" style="font-size:12px">微調整：</span>
+          <button class="sec" onclick="nudge(0,-1)" style="min-width:44px">←</button>
+          <button class="sec" onclick="nudge(-1,0)" style="min-width:44px">↑</button>
+          <button class="sec" onclick="nudge(1,0)" style="min-width:44px">↓</button>
+          <button class="sec" onclick="nudge(0,1)" style="min-width:44px">→</button>
           <button class="ghost" onclick="clearSel()">選択解除</button>
         </div>
         <div class="legend" id="hint"></div>
@@ -271,10 +278,10 @@ function renderSelPreview(){
 function updateHint(){
   if(!G.sel){g('hint').textContent='';g('placeBtn').disabled=true;return;}
   var ok=G.ghost&&G.ghost.valid;g('placeBtn').disabled=!ok;
-  g('hint').innerHTML=ok?'✓ ここに置けます。「ここに置く」で確定。':'盤をタップして位置合わせ（回転/反転で向き調整）。';
+  g('hint').innerHTML=ok?'✓ ここに置けます。「ここに置く」で確定。<br><span class="muted">同じマスを再タップ＝別の置き方に切替／矢印＝1マス移動</span>':'盤をタップして位置合わせ（回転/反転で向き・矢印で1マス移動）。';
 }
 function selPiece(pid){if(G.players[G.turn].ai)return;if(G.players[G.turn].remain.indexOf(pid)<0)return;G.sel=pid;G.ori=0;G.ghost=null;renderTray();renderSelPreview();var sp=startPoint();placeGhostNear(sp[0],sp[1]);}
-function clearSel(){G.sel=null;G.ghost=null;renderTray();renderBoard();renderSelPreview();}
+function clearSel(){G.sel=null;G.ghost=null;TAPC.key=-1;renderTray();renderBoard();renderSelPreview();}
 function curCells(){return ORI[G.sel][G.ori];}
 function rotate(){if(!G.sel)return;G.ori=(G.ori+1)%ORI[G.sel].length;renderSelPreview();var p=G.ghost?[G.ghost.R,G.ghost.C]:startPoint();placeGhostNear(p[0],p[1]);}
 function flipP(){if(!G.sel)return;var fl=flip(curCells());var os=ORI[G.sel];for(var i=0;i<os.length;i++){if(JSON.stringify(os[i])===JSON.stringify(fl)){G.ori=i;break;}}renderSelPreview();var p=G.ghost?[G.ghost.R,G.ghost.C]:startPoint();placeGhostNear(p[0],p[1]);}
@@ -289,7 +296,7 @@ function setGhost(R,C){
 }
 function startPoint(){var seat=G.turn;if(G.players[seat].first)return CORNERS[seat];var a=anchorCells(seat);return a.length?a[0]:[9,9];}
 function placeGhostNear(R,C){
-  if(!G.sel)return;var o=curCells(),seat=G.turn,first=G.players[seat].first;
+  if(!G.sel)return;TAPC.key=-1;var o=curCells(),seat=G.turn,first=G.players[seat].first;
   var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
   for(var rad=0;rad<=14;rad++){var found=null,bestd=1e9;
     for(var dr=-rad;dr<=rad;dr++)for(var dc=-rad;dc<=rad;dc++){
@@ -299,10 +306,30 @@ function placeGhostNear(R,C){
     if(found){setGhost(found[0],found[1]);return;}}
   setGhost(R,C);
 }
+/* タップ位置を覆う置き方を近い順に列挙。同じマスを再タップすると次の候補に切替。 */
+var TAPC={key:-1,list:[],idx:0};
+function candidatesNear(R,C){
+  var o=curCells(),seat=G.turn,first=G.players[seat].first,res=[];
+  var mr=Math.max.apply(null,o.map(function(c){return c[0];})),mc=Math.max.apply(null,o.map(function(c){return c[1];}));
+  for(var rr=0;rr<=N-1-mr;rr++)for(var cc=0;cc<=N-1-mc;cc++){
+    if(!canPlace(seat,o,rr,cc,first))continue;
+    var cover=0,bd=1e9;
+    for(var k=0;k<o.length;k++){var pr=rr+o[k][0],pc=cc+o[k][1];var d=(pr-R)*(pr-R)+(pc-C)*(pc-C);if(d<bd)bd=d;if(pr===R&&pc===C)cover=1;}
+    res.push({rr:rr,cc:cc,cover:cover,d:bd});
+  }
+  res.sort(function(a,b){return (b.cover-a.cover)||(a.d-b.d);});
+  return res.slice(0,12);
+}
 function cellTap(e){
   if(!G||G.over||G.players[G.turn].ai||!G.sel)return;
-  placeGhostNear(+e.currentTarget.dataset.r,+e.currentTarget.dataset.c);
+  var r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c,key=r*100+c;
+  if(TAPC.key===key&&TAPC.list.length>1){TAPC.idx=(TAPC.idx+1)%TAPC.list.length;}
+  else{TAPC.key=key;TAPC.list=candidatesNear(r,c);TAPC.idx=0;}
+  if(TAPC.list.length){var g0=TAPC.list[TAPC.idx];setGhost(g0.rr,g0.cc);
+    if(TAPC.list.length>1)g('hint').innerHTML='置き方 '+(TAPC.idx+1)+'/'+TAPC.list.length+'（同じマスをタップで切替／矢印で1マス移動）'+(G.ghost&&G.ghost.valid?'　✓「ここに置く」で確定':'');}
+  else placeGhostNear(r,c);
 }
+function nudge(dr,dc){if(!G.sel||!G.ghost)return;TAPC.key=-1;setGhost(G.ghost.R+dr,G.ghost.C+dc);}
 function confirmPlace(){
   if(!G.sel||!G.ghost||!G.ghost.valid)return;
   placePiece(G.turn,G.sel,curCells(),G.ghost.R,G.ghost.C);
