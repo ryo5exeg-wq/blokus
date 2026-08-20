@@ -57,8 +57,8 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 <div id="toast"></div>
 
 <div id="lobby" class="card">
-  <label>サーバーURL</label><input id="srv" placeholder="https://blokus-server.xxx.workers.dev">
-  <label>あなたの名前</label><input id="nm" value="りょうま" maxlength="16">
+  <label>あなたの名前</label><input id="nm" placeholder="お名前を入れてください" maxlength="16">
+  <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;opacity:.75">サーバーの設定（ふだんは触らなくてOK）</summary><input id="srv" style="margin-top:8px" placeholder="https://blokus-server.ryo5exeg.workers.dev"></details>
   <div class="row" style="margin-top:12px">
     <div><button onclick="createRoom()" style="width:100%">部屋をつくる</button></div>
   </div>

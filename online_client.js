@@ -1,6 +1,7 @@
 /* Blokus online client (uses BLOKUS core globals + DOM) */
 var N=BLOKUS.N,ORI=BLOKUS.ORI,SIZE=BLOKUS.SIZE,COLORS=BLOKUS.COLORS,CNAMES=BLOKUS.CNAMES,CORNERS=BLOKUS.CORNERS;
 var PMAP={};BLOKUS.PIECES.forEach(function(p){PMAP[p[0]]=p[1];});
+var SRV_DEFAULT='https://blokus-server.ryo5exeg.workers.dev';
 var SRV='',PID='',CODE='',MYSEAT=-1,ROOM=null,VIEW=null,REV=0,poll=null,polling=false,failCount=0;
 var SEL=null,ORII=0,GHOST=null;
 function g(id){return document.getElementById(id);}
@@ -10,9 +11,9 @@ function show(id){['lobby','waiting','game'].forEach(function(x){g(x).classList.
 function api(path,method,bodyObj){return fetch(SRV.replace(/\/$/,'')+path,{method:method||'GET',headers:{'content-type':'application/json'},body:bodyObj?JSON.stringify(bodyObj):undefined}).then(function(r){return r.json();});}
 function saveSession(){try{localStorage.setItem('bk_online',JSON.stringify({SRV:SRV,CODE:CODE,PID:PID}));}catch(e){}}
 
-function createRoom(){SRV=g('srv').value.trim();var nm=g('nm').value.trim()||'りょうま';if(!SRV){err('サーバーURLを入れてね');return;}err('');
+function createRoom(){SRV=g('srv').value.trim()||SRV_DEFAULT;var nm=g('nm').value.trim()||'プレイヤー';err('');
   api('/api/room/create','POST',{hostName:nm}).then(function(r){if(r.error){err(r.error);return;}PID=r.playerId;CODE=r.code;MYSEAT=r.seat;ROOM=r.room;saveSession();enterWaiting();}).catch(function(){err('接続できませんでした');});}
-function joinRoom(){SRV=g('srv').value.trim();var nm=g('nm').value.trim()||'プレイヤー';var c=(g('jc').value||'').trim().toUpperCase();if(!SRV||!c){err('サーバーURLと部屋コードを入れてね');return;}err('');
+function joinRoom(){SRV=g('srv').value.trim()||SRV_DEFAULT;var nm=g('nm').value.trim()||'プレイヤー';var c=(g('jc').value||'').trim().toUpperCase();if(!c){err('部屋コードを入れてね');return;}err('');
   api('/api/room/'+c+'/join','POST',{name:nm}).then(function(r){if(r.error){err(r.error);return;}PID=r.playerId;CODE=c;MYSEAT=r.seat;ROOM=r.room;saveSession();enterWaiting();}).catch(function(){err('参加できませんでした');});}
 function shareLink(){var url=location.origin+location.pathname+'?server='+encodeURIComponent(SRV)+'&code='+CODE;
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){g('sharemsg').textContent='リンクをコピーしました！仲間に送ってね';}).catch(function(){g('sharemsg').textContent=url;});}else g('sharemsg').textContent=url;}
