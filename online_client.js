@@ -17,7 +17,20 @@ function joinRoom(){SRV=g('srv').value.trim()||SRV_DEFAULT;var nm=g('nm').value.
   api('/api/room/'+c+'/join','POST',{name:nm}).then(function(r){if(r.error){err(r.error);return;}PID=r.playerId;CODE=c;MYSEAT=r.seat;ROOM=r.room;saveSession();enterWaiting();}).catch(function(){err('参加できませんでした');});}
 function shareLink(){var url=location.origin+location.pathname+'?server='+encodeURIComponent(SRV)+'&code='+CODE;
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){g('sharemsg').textContent='リンクをコピーしました！仲間に送ってね';}).catch(function(){g('sharemsg').textContent=url;});}else g('sharemsg').textContent=url;}
-function enterWaiting(){saveSession();show('waiting');g('wcode').textContent=CODE;startPoll();}
+function enterWaiting(){saveSession();show('waiting');g('wcode').textContent=CODE;renderQr();startPoll();}
+/* 対面用の参加QR（qr.js未読込なら箱を隠すだけ） */
+function renderQr(){
+  var el=g('wQr'); if(!el)return;
+  if(typeof qrcode!=='function'){g('wQrBox').style.display='none';return;}
+  if(el.getAttribute('data-code')===CODE)return;
+  var u=location.origin+location.pathname+'?code='+CODE+(SRV!==SRV_DEFAULT?'&server='+encodeURIComponent(SRV):'');
+  try{
+    var q=qrcode(0,'M'); q.addData(u); q.make();
+    el.innerHTML=q.createSvgTag({cellSize:6,margin:3,scalable:true});
+    el.setAttribute('data-code',CODE);
+    g('wQrBox').style.display='';
+  }catch(e){g('wQrBox').style.display='none';}
+}
 function tryReconnect(sv){SRV=sv.SRV;CODE=sv.CODE;PID=sv.PID;api('/api/room/'+CODE+'/state?playerId='+PID).then(function(r){if(r&&r.ok&&r.you>=0){ROOM=r.room;MYSEAT=r.you;startPoll();}else{localStorage.removeItem('bk_online');show('lobby');}}).catch(function(){localStorage.removeItem('bk_online');show('lobby');});}
 function leave(){stopPoll();try{localStorage.removeItem('bk_online');}catch(e){}show('lobby');}
 
@@ -29,7 +42,7 @@ function tick(){
   api('/api/room/'+CODE+'/state?playerId='+PID).then(function(r){
     failCount=0;g('connbar').classList.add('hidden');
     if(!r||r.error)return;ROOM=r.room;MYSEAT=r.you;REV=r.rev||0;
-    if(!r.started){renderWaiting();show('waiting');}
+    if(!r.started){renderWaiting();show('waiting');renderQr();}
     else{VIEW=r.view;show('game');renderGame();}
   }).catch(function(){failCount++;if(failCount>=3)g('connbar').classList.remove('hidden');})
   .then(function(){if(polling)poll=setTimeout(tick,nextDelay());});

@@ -46,6 +46,11 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
 .turnmsg{font-weight:800;margin:2px 0 8px;font-size:15px;}.legend{font-size:12px;color:var(--mut);margin-top:6px;line-height:1.5;}
 .bigcode{font-size:30px;font-weight:900;letter-spacing:4px;color:#3f7d3f;text-align:center;background:#eef6ee;border-radius:12px;padding:10px;margin:8px 0;}
+/* 対面用: 画面に出す参加QR（白地でないとカメラが読めない） */
+.qrbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 10px 8px;margin:8px 0;text-align:center;}
+#wQr svg{width:min(56vw,210px);height:min(56vw,210px);display:block;margin:0 auto;}
+.qrbox .qs{color:#33302a;font-size:13px;margin-top:6px;font-weight:700;}
+.qrbox .qs2{color:#8a8273;font-size:11px;margin-top:2px;}
 .prow{display:flex;justify-content:space-between;background:#fafafa;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-weight:800;margin:4px 0;}
 #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:10px;font-weight:700;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;font-size:14px;}
 #toast.on{opacity:.95;}
@@ -75,6 +80,9 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 <div id="waiting" class="card hidden">
   <div class="muted" style="text-align:center">この部屋コードを仲間に伝えてね</div>
   <div class="bigcode" id="wcode">----</div>
+  <div class="qrbox" id="wQrBox"><div id="wQr"></div>
+    <div class="qs">📷 スマホのカメラで読み取ると、この部屋に入れます</div>
+    <div class="qs2">💻 PCの人は「部屋コードで参加」に上のコードを入力</div></div>
   <div class="row" id="shareRow"><button class="sec" onclick="shareLink()" style="width:100%">参加リンクをコピー</button></div>
   <div class="note muted" id="sharemsg"></div>
   <div id="wplist"></div>
@@ -119,6 +127,7 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 </div>
 
 <script src="blokus_core.js"></script>
+<script src="qr.js"></script>
 <script src="online_client.js"></script>
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
 </body></html>
