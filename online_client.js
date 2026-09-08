@@ -50,8 +50,21 @@ function tick(){
 function renderWaiting(){
   g('wplist').innerHTML=(ROOM.players||[]).map(function(p){return '<div class="prow"><span><span class="dot" style="display:inline-block;width:13px;height:13px;border-radius:3px;background:'+COLORS[p.seat]+';vertical-align:middle"></span> '+p.name+(p.seat===MYSEAT?'<span class="you-badge">YOU</span>':'')+'</span><span class="muted">'+CNAMES[p.seat]+'</span></div>';}).join('');
   g('wstatus').textContent='参加 '+ROOM.players.length+' / 4（足りない席はAIが入ります）';
-  var isHost=ROOM.host&&ROOM.players.find(function(p){return p.seat===MYSEAT;})&&ROOM.host===PID;
+  var isHost=(ROOM.hostSeat!==undefined)?(ROOM.hostSeat===MYSEAT):(ROOM.host===PID);
   g('startBtn').classList.toggle('hidden',!isHost);g('shareRow').classList.toggle('hidden',!isHost);
+}
+/* AI代行の許可ボタンを出せる人＝ホスト。ホスト自身が切断中なら誰でも */
+function canApproveAi(){
+  if(!ROOM||ROOM.hostSeat===undefined)return false;
+  if(ROOM.hostSeat===MYSEAT)return true;
+  var hp=null;(ROOM.players||[]).forEach(function(p){if(p.seat===ROOM.hostSeat)hp=p;});
+  return !!(hp&&!hp.connected);
+}
+function approveAi(seat,name){
+  if(!confirm(name+' さんは切断中です。\nAIに代行させますか？\n（本人がページを開き直せばいつでも復帰できます）'))return;
+  api('/api/room/'+CODE+'/aiok','POST',{playerId:PID,seat:seat}).then(function(r){
+    if(r.error)toast(r.error);tick();
+  }).catch(function(){toast('送信できませんでした');});
 }
 function startGame(){api('/api/room/'+CODE+'/start','POST',{playerId:PID}).then(function(r){if(r.error)toast(r.error);});}
 function doRestart(){api('/api/room/'+CODE+'/restart','POST',{playerId:PID}).then(function(r){if(r.error)toast(r.error);clearSel();tick();});}
@@ -67,9 +80,16 @@ function renderGame(){
 }
 function renderScores(){
   var connMap={};((ROOM&&ROOM.players)||[]).forEach(function(rp){connMap[rp.seat]=rp;});
-  var h='';for(var s=0;s<4;s++){var P=VIEW.players[s];var rp=connMap[s];var bot=rp&&rp.bot;
+  var h='';for(var s=0;s<4;s++){var P=VIEW.players[s];var rp=connMap[s];
+    var badge='';
+    if(rp&&rp.bot)badge='<span class="discon">AI代行中</span>';
+    else if(rp&&rp.aiPending)badge='<span class="discon">切断中</span>';
+    var aiBtn='';
+    if(rp&&rp.aiPending&&!VIEW.over&&canApproveAi())
+      aiBtn=' <button style="font-size:11px;padding:2px 8px;border-radius:99px;cursor:pointer" '
+        +'onclick="approveAi('+s+',\''+String(P.name).replace(/[\\'"<>]/g,'')+'\')">🤖 AIに代行させる</button>';
     h+='<div class="scd'+(VIEW.turn===s&&!VIEW.over?' turn':'')+(P.passed?' passed':'')+'">'+
-       '<div class="nm"><span class="dot" style="background:'+COLORS[s]+'"></span>'+P.name+(s===MYSEAT?'<span class="you-badge">YOU</span>':'')+(bot?'<span class="discon">切断中</span>':'')+'</div>'+
+       '<div class="nm"><span class="dot" style="background:'+COLORS[s]+'"></span>'+P.name+(s===MYSEAT?'<span class="you-badge">YOU</span>':'')+badge+aiBtn+'</div>'+
        '<div class="det">残り'+P.remain.length+'個｜得点 '+P.score+(P.passed?'｜パス':'')+'</div></div>';}
   g('scores').innerHTML=h;
 }
