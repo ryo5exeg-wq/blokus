@@ -56,11 +56,14 @@ label{font-size:12px;color:var(--mut);margin:6px 0 3px;display:block;}
 #toast.on{opacity:.95;}
 #connbar{background:#fff0f0;color:var(--c3);border:1px solid var(--c3);border-radius:10px;padding:7px 10px;font-weight:700;text-align:center;margin-bottom:8px;}
 .win{font-size:17px;font-weight:800;}
+
+/* タイトルロゴ（2026-09-22・ChatGPT製 assets/logo.png） */
+.title-logo{display:block;height:auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45));}
 </style></head>
 <body>
 <!--navbar-->
 <div id="navbar" style="position:relative;z-index:9999;display:flex;gap:8px;align-items:center;padding:7px 10px;background:var(--panel,#ffffff);border-bottom:1px solid var(--line,#d9d2c4);font-family:inherit"><a href="https://ryo5exeg-wq.github.io/ponzi/" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--bg,#f4f1ea);border:1px solid var(--line,#d9d2c4);color:var(--ink,#33302a);border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;min-height:38px;box-sizing:border-box">🏠 <span>ゲーム一覧</span></a><span id="navSlot"></span></div>
-<h1>🟦 ブロックス <span class="muted">オンライン対戦（4人）</span></h1>
+<h1 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><img class="title-logo" src="assets/logo.png" alt="ブロックス" style="height:54px;width:auto"><span class="muted" style="font-size:14px">オンライン対戦（4人）</span></h1>
 <div id="toast"></div>
 
 <div id="lobby" class="card">

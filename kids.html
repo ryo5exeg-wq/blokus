@@ -75,13 +75,16 @@
   #resultCard h2{ font-size:26px; margin-bottom:8px; }
   #resultCard p{ font-size:16px; margin-bottom:4px; font-weight:900; }
   .hidden{ display:none !important; }
+
+/* タイトルロゴ（2026-09-22・ChatGPT製 assets/logo.png） */
+.title-logo{display:block;height:auto;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45));}
 </style>
 </head>
 <body>
 <!--navbar-->
 <div id="navbar" style="position:relative;z-index:9999;display:flex;gap:8px;align-items:center;padding:7px 10px;background:#ffffff;border-bottom:1px solid var(--line,#c9d6f0);font-family:inherit"><a href="https://ryo5exeg-wq.github.io/ponzi/" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--bg,#f2f6ff);border:1px solid var(--line,#c9d6f0);color:var(--tx,#1a2236);border-radius:99px;padding:7px 14px;font-size:14px;font-weight:600;min-height:38px;box-sizing:border-box">🏠 <span>ゲーム一覧</span></a><span id="navSlot"></span></div>
 <div class="wrap">
-  <h1>ブロックス <span class="b">かんたん</span><span class="o">版</span></h1>
+  <h1 style="display:flex;flex-direction:column;align-items:center;gap:2px"><img class="title-logo" src="assets/logo.png" alt="ブロックス" style="width:min(70vw,340px)"><span><span class="b">かんたん</span><span class="o">版</span></span></h1>
 
   <div id="startCard">
     <p><b>あそびかた</b><br>
